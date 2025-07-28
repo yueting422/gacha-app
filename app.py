@@ -1,11 +1,12 @@
 import streamlit as st
 import random
 import os
+import re  # 匯入正規表示式模組
 from pathlib import Path
 
 # --- 網頁基礎設定 ---
-st.set_page_config(page_title="TNT抽卡模擬器", page_icon="🍿")
-st.title("💣 時代少年團 - 抽卡模擬器")
+st.set_page_config(page_title="TNT抽卡模擬器", page_icon="🎁")
+st.title("🎁 時代少年團 - 抽卡模擬器")
 
 # --- 通用函式 ---
 def get_image_files(path):
@@ -15,10 +16,16 @@ def get_image_files(path):
         return []
     return [str(p) for p in image_path.glob('*') if p.suffix.lower() in ('.png', '.jpg', '.jpeg')]
 
+def natural_sort_key(s):
+    """
+    提供給 sort() 使用的鍵，實現自然排序 (e.g., card2.jpg 會在 card10.jpg 之前)。
+    """
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
+
 # --- 「夏日記憶」模式的函式 (無變動) ---
 def draw_summer_memories():
     st.subheader("☀️ 夏日記憶")
-    st.write("規則：從所有卡片中隨機抽取 3 張雙人卡。")
+    st.write("規則：從所有卡片中隨機抽取 3 張。")
     
     deck_path = Path("image/夏日記憶")
     deck = get_image_files(deck_path)
@@ -92,6 +99,10 @@ def draw_solo_set():
     chosen_folder_path = base_path / chosen_rarity
     card_set = get_image_files(chosen_folder_path)
     
+    # 【本次更新重點】如果找到了卡片，就按照檔名中的數字進行排序
+    if card_set:
+        card_set.sort(key=natural_sort_key)
+    
     if not card_set:
         st.error(f"在「單人固卡」中找不到 {chosen_rarity} 的卡片，請檢查資料夾。")
         return None, None
@@ -117,7 +128,7 @@ def draw_third_album():
 
         # 1. 抽取雙人卡
         st.markdown("---")
-        st.markdown("### 💖 雙人卡 (3張)")
+        st.markdown("### � 雙人卡 (3張)")
         duo_results = draw_duo_cards()
         if duo_results:
             cols = st.columns(3)
