@@ -43,7 +43,6 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 【本次更新重點】移除執行時的密碼雜湊，改用預先產生的雜湊值
 # 範例使用者 tnt_user 的密碼現在是 '12345'
 users = {
     "usernames": {
@@ -55,8 +54,9 @@ users = {
     }
 }
 
+# 【本次更新重點】修正 Authenticate 的第一個參數，傳遞完整的 users 字典
 authenticator = stauth.Authenticate(
-    users['usernames'],
+    users,
     'tnt_gacha_cookie',    # Cookie 名稱，可自訂
     'tnt_gacha_signature', # Signature 金鑰，可自訂
     cookie_expiry_days=30
@@ -172,7 +172,7 @@ if authentication_status:
         if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
             st.success("抽卡結果如下：")
             draw_random_cards_and_save(base_path / "團體卡", 1, "🎫 團體卡")
-            draw_random_cards_and_save(base_path / "分隊卡", 1, "� 分隊卡")
+            draw_random_cards_and_save(base_path / "分隊卡", 1, "👯 分隊卡")
             draw_random_cards_and_save(base_path / "雙人卡", 7, "💖 雙人卡")
             draw_random_cards_and_save(base_path / "ID卡", 1, "🆔 ID卡")
             draw_fixed_solo_set_and_save(base_path / "單人固卡", "✨ 單人固卡")
