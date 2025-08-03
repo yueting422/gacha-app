@@ -12,7 +12,7 @@ from collections import defaultdict
 # --- 網頁基礎設定 ---
 st.set_page_config(page_title="TNT抽卡模擬器", page_icon="🎁", layout="wide")
 
-# --- 【新功能】載入卡片資料 ---
+# --- 載入卡片資料 ---
 @st.cache_data
 def load_card_data():
     """從 card_data.json 載入卡片名稱對照表"""
@@ -20,7 +20,6 @@ def load_card_data():
         with open('card_data.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        # 如果找不到檔案，返回一個空字典，並在側邊欄顯示警告
         st.sidebar.warning("找不到 card_data.json 檔案，卡片將無法顯示名稱。")
         return {}
     except json.JSONDecodeError:
@@ -124,12 +123,45 @@ def main_app():
             del st.session_state[key]
         st.rerun()
     app_mode = st.sidebar.selectbox("請選擇功能", ["抽卡模擬器", "我的卡冊"])
+    
+    with st.sidebar.expander("帳號管理"):
+        st.warning("注意：刪除帳號將會永久移除您的所有卡冊資料，此操作無法復原。")
+        password = st.text_input("請輸入您的密碼以進行驗證", type="password", key="delete_password")
+        confirmation = st.text_input("請輸入 'DELETE' 以確認刪除", key="delete_confirm")
+        if st.button("永久刪除我的帳號"):
+            delete_user_account(password, confirmation)
+
     st.sidebar.markdown("---")
     st.sidebar.caption("此網頁的圖檔皆來自於微博 : 小姚宋敏")
     if app_mode == "我的卡冊":
         show_card_collection()
     else:
         show_gacha_simulator()
+
+def delete_user_account(password, confirmation):
+    """處理刪除帳號的邏輯"""
+    username = st.session_state['username']
+    user_ref = db.collection('users').document(username).get()
+    user_data = user_ref.to_dict()
+
+    if not pbkdf2_sha256.verify(password, user_data.get('password_hash', '')):
+        st.sidebar.error("密碼不正確！")
+        return
+    
+    if confirmation.strip().upper() != 'DELETE':
+        st.sidebar.error("確認文字不符，請輸入 'DELETE'。")
+        return
+
+    with st.spinner("正在刪除您的所有資料..."):
+        cards_ref = db.collection('users').document(username).collection('cards')
+        for doc in cards_ref.stream():
+            doc.reference.delete()
+        db.collection('users').document(username).delete()
+
+    st.success("您的帳號與所有資料已成功刪除。")
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
 
 def show_card_collection():
     st.header("📚 我的卡冊")
@@ -139,20 +171,20 @@ def show_card_collection():
         st.info("您的卡冊還是空的，快去抽卡吧！")
         return
 
-    # 【本次更新重點】按卡池分組
     grouped_cards = defaultdict(list)
     for card in my_cards:
         path = card.get('path')
         if path:
-            # 從路徑 'image/卡池名稱/...' 中提取卡池名稱
             pool_name = Path(path).parts[1]
-            grouped_cards[pool_name].append(card)
+            if pool_name.startswith("二專"):
+                grouped_cards["二專"].append(card)
+            else:
+                grouped_cards[pool_name].append(card)
 
     total_cards = sum(c.get('count', 0) for c in my_cards)
     st.success(f"您總共擁有 {len(my_cards)} 種不同卡片，總計 {total_cards} 張。")
     st.markdown("---")
 
-    # 按照卡池名稱排序並顯示
     for pool_name in sorted(grouped_cards.keys()):
         with st.expander(f"**{pool_name}** ({len(grouped_cards[pool_name])} 種)"):
             pool_cards = grouped_cards[pool_name]
@@ -167,9 +199,8 @@ def show_card_collection():
                 with col1:
                     st.image(path, width=150)
                 with col2:
-                    st.subheader(f"【 {card_name} 】")
-                    st.write(f"**擁有數量：{count}**")
-                    st.caption(f"路徑: {path}")
+                    st.markdown(f"**{card_name}**")
+                    st.write(f"擁有數量：{count}")
                 st.markdown("---")
 
 
@@ -179,7 +210,7 @@ def show_gacha_simulator():
     selected_mode = st.selectbox("請選擇您想玩的抽卡模式：", modes)
     st.markdown("---")
     if selected_mode == "☀️ 夏日記憶": draw_summer_memories()
-    elif selected_mode == "🎤 二專-三時有聲款": draw_second_album("二專-三時有聲款")
+    elif selected_mode == "� 二專-三時有聲款": draw_second_album("二專-三時有聲款")
     elif selected_mode == "🎡 二專-烏托邦樂園款": draw_second_album("二專-烏托邦樂園款")
     elif selected_mode == "💿 第三張專輯": draw_third_album()
 
@@ -234,17 +265,28 @@ def draw_summer_memories():
 def draw_second_album(album_name):
     st.subheader(f"🎶 {album_name}")
     st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
-    base_path = Path(f"image/{album_name}")
+    
+    # 決定資料來源路徑
+    if album_name == "二專-烏托邦樂園款":
+        data_source_path = Path("image/二專-三時有聲款")
+    else:
+        data_source_path = Path(f"image/{album_name}")
+    
+    # 預售禮的路徑永遠跟隨選擇的款式
+    presale_path = Path(f"image/{album_name}/預售禮")
+
     if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
         st.success("抽卡結果如下：")
-        draw_random_cards_and_save(base_path / "團體卡", 1, "🎫 團體卡")
-        draw_random_cards_and_save(base_path / "分隊卡", 1, "👯 分隊卡")
-        draw_random_cards_and_save(base_path / "雙人卡", 7, "💖 雙人卡")
-        draw_random_cards_and_save(base_path / "ID卡", 1, "🆔 ID卡")
-        draw_fixed_solo_set_and_save(base_path / "單人固卡", "✨ 單人固卡")
-        draw_random_cards_and_save(base_path / "高級會員專屬贈品", 1, "💎 高級會員贈品")
+        # 使用決定好的資料來源路徑進行抽卡
+        draw_random_cards_and_save(data_source_path / "團體卡", 1, "🎫 團體卡")
+        draw_random_cards_and_save(data_source_path / "分隊卡", 1, "👯 分隊卡")
+        draw_random_cards_and_save(data_source_path / "雙人卡", 7, "💖 雙人卡")
+        draw_random_cards_and_save(data_source_path / "ID卡", 1, "🆔 ID卡")
+        draw_fixed_solo_set_and_save(data_source_path / "單人固卡", "✨ 單人固卡")
+        draw_random_cards_and_save(data_source_path / "高級會員專屬贈品", 1, "💎 高級會員贈品")
+        
         st.markdown("### 特典 - 預售禮")
-        presale_path = base_path / "預售禮"
+        # 預售禮使用自己款式的路徑
         if album_name == "二專-三時有聲款":
             draw_random_cards_and_save(presale_path / "團卡", 1, "預售禮 - 團卡")
             draw_random_cards_and_save(presale_path / "單人卡", 1, "預售禮 - 單人卡")
