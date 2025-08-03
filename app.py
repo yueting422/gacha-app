@@ -8,26 +8,23 @@ from firebase_admin import credentials, firestore
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
-import json # 【本次更新重點】匯入 json 模組
+import json
 
 # --- Firebase 初始化 ---
 # 使用 Streamlit Secrets 來安全地加載 Firebase 金鑰
 try:
     # 為了避免重複初始化，我們檢查 session_state
     if 'db' not in st.session_state:
-        # 【本次更新重點】先將 secrets 讀取為字串，再用 json.loads() 轉換為字典
-        key_string = st.secrets["firebase_credentials"]["key"]
-        key_dict = json.loads(key_string)
+        # 【本次更新重點】直接將 secrets 當作字典傳遞，不再需要 json.loads()
+        cred = credentials.Certificate(st.secrets["firebase_credentials"])
         
-        # 初始化 Firebase App
-        cred = credentials.Certificate(key_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         
         # 建立 Firestore 客戶端並存入 session state
         st.session_state['db'] = firestore.client()
 except Exception as e:
-    st.error("Firebase 初始化失敗，請檢查 Streamlit Secrets 中的金鑰是否設定正確，或金鑰格式是否有誤。")
+    st.error("Firebase 初始化失敗，請檢查 Streamlit Secrets 中的金鑰是否已拆解成獨立欄位。")
     st.error(e)
     st.stop()
 
@@ -215,7 +212,7 @@ if authentication_status:
                 ur_cards = get_image_files(Path("image/三專/UR"))
                 if ur_cards:
                     st.balloons()
-                    st.markdown("### 🎉 奇蹟降臨！🎉")
+                    st.markdown("### � 奇蹟降臨！🎉")
                     drawn = random.choice(ur_cards)
                     add_cards_to_collection([drawn])
                     c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
