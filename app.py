@@ -43,23 +43,34 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 範例使用者 tnt_user 的密碼現在是 '12345'
-users = {
-    "usernames": {
-        "tnt_user": { # 這是一個範例使用者名稱
-            "email": "user@example.com",
-            "name": "時代少年團粉絲",
-            "password": "$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1" # 這是 '12345' 的一個範例雜湊值
+# 【本次更新重點】使用官方推薦的 config 字典結構來進行設定
+# 範例使用者 tnt_user 的密碼是 '12345'
+config = {
+    'credentials': {
+        'usernames': {
+            'tnt_user': {
+                'email': 'user@example.com',
+                'name': '時代少年團粉絲',
+                'password': '$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1' # '12345' 的雜湊值
+            }
         }
+    },
+    'cookie': {
+        'expiry_days': 30,
+        'key': 'tnt_gacha_signature_key', # 必須是一個 secret key
+        'name': 'tnt_gacha_cookie_name'
+    },
+    'preauthorized': {
+        'emails': []
     }
 }
 
-# 【本次更新重點】修正 Authenticate 的第一個參數，傳遞完整的 users 字典
+
 authenticator = stauth.Authenticate(
-    users,
-    'tnt_gacha_cookie',    # Cookie 名稱，可自訂
-    'tnt_gacha_signature', # Signature 金鑰，可自訂
-    cookie_expiry_days=30
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
 )
 
 # --- 登入介面 ---
@@ -246,7 +257,7 @@ if authentication_status:
 
         if selected_mode == "☀️ 夏日記憶":
             draw_summer_memories()
-        elif selected_mode == "🎤 二專-三時有聲款":
+        elif selected_mode == "� 二專-三時有聲款":
             draw_second_album("二專-三時有聲款")
         elif selected_mode == "🎡 二專-烏托邦樂園款":
             draw_second_album("二專-烏托邦樂園款")
