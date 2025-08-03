@@ -6,21 +6,36 @@ from pathlib import Path
 import firebase_admin
 from firebase_admin import credentials, firestore
 from passlib.hash import pbkdf2_sha256 # 用於密碼雜湊與驗證
+import json
+from collections import defaultdict
 
 # --- 網頁基礎設定 ---
 st.set_page_config(page_title="TNT抽卡模擬器", page_icon="🎁", layout="wide")
 
+# --- 【新功能】載入卡片資料 ---
+@st.cache_data
+def load_card_data():
+    """從 card_data.json 載入卡片名稱對照表"""
+    try:
+        with open('card_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # 如果找不到檔案，返回一個空字典，並在側邊欄顯示警告
+        st.sidebar.warning("找不到 card_data.json 檔案，卡片將無法顯示名稱。")
+        return {}
+    except json.JSONDecodeError:
+        st.sidebar.error("card_data.json 格式錯誤，請檢查檔案內容。")
+        return {}
+
+CARD_DATA = load_card_data()
+
 # --- Firebase 初始化 ---
-# 使用 Streamlit Secrets 來安全地加載 Firebase 金鑰
 try:
-    # 為了避免重複初始化，我們檢查 session_state
     if 'db' not in st.session_state:
-        # 手動從 secrets 建立一個標準的 Python 字典
         creds_dict = {
             "type": st.secrets["firebase_credentials"]["type"],
             "project_id": st.secrets["firebase_credentials"]["project_id"],
             "private_key_id": st.secrets["firebase_credentials"]["private_key_id"],
-            # 修正 private_key 中的換行符問題
             "private_key": st.secrets["firebase_credentials"]["private_key"].replace('\\n', '\n'),
             "client_email": st.secrets["firebase_credentials"]["client_email"],
             "client_id": st.secrets["firebase_credentials"]["client_id"],
@@ -30,16 +45,12 @@ try:
             "client_x509_cert_url": st.secrets["firebase_credentials"]["client_x509_cert_url"],
             "universe_domain": st.secrets["firebase_credentials"]["universe_domain"]
         }
-        
         cred = credentials.Certificate(creds_dict)
-        
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
-        
-        # 建立 Firestore 客戶端並存入 session state
         st.session_state['db'] = firestore.client()
 except Exception as e:
-    st.error("Firebase 初始化失敗，請檢查 Streamlit Secrets 中的金鑰是否已拆解成獨立欄位且格式正確。")
+    st.error("Firebase 初始化失敗，請檢查 Streamlit Secrets 中的金鑰。")
     st.error(e)
     st.stop()
 
@@ -47,28 +58,23 @@ db = st.session_state['db']
 
 # --- 通用函式 ---
 def get_image_files(path):
-    """安全地獲取指定路徑下的所有圖片檔案"""
     image_path = Path(path)
     if not image_path.is_dir(): return []
     return [str(p) for p in image_path.glob('*') if p.suffix.lower() in ('.png', '.jpg', '.jpeg')]
 
 def natural_sort_key(s):
-    """提供給 sort() 使用的鍵，實現自然排序"""
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
 
 # --- 登入與註冊邏輯 ---
 def show_login_register_page():
     st.title("歡迎來到 TNT 抽卡模擬器")
-    
     login_tab, register_tab = st.tabs(["登入 (Login)", "註冊 (Register)"])
-
     with login_tab:
         st.subheader("會員登入")
         with st.form("login_form"):
             username = st.text_input("使用者名稱", key="login_user").lower()
             password = st.text_input("密碼", type="password", key="login_pass")
             login_submitted = st.form_submit_button("登入")
-
             if login_submitted:
                 if not username or not password:
                     st.error("使用者名稱和密碼不可為空！")
@@ -78,14 +84,13 @@ def show_login_register_page():
                         st.error("使用者不存在！")
                     else:
                         user_data = user_ref.to_dict()
-                        if pbkdf2_sha256.verify(password, user_data['password_hash']):
+                        if pbkdf2_sha256.verify(password, user_data.get('password_hash', '')):
                             st.session_state['authentication_status'] = True
                             st.session_state['username'] = username
-                            st.session_state['name'] = user_data['name']
-                            st.rerun() # 重新整理頁面以進入主應用
+                            st.session_state['name'] = user_data.get('name', username)
+                            st.rerun()
                         else:
                             st.error("密碼不正確！")
-
     with register_tab:
         st.subheader("建立新帳號")
         with st.form("register_form"):
@@ -94,7 +99,6 @@ def show_login_register_page():
             new_password = st.text_input("設定密碼", type="password", key="reg_pass")
             confirm_password = st.text_input("確認密碼", type="password", key="reg_confirm")
             register_submitted = st.form_submit_button("註冊")
-
             if register_submitted:
                 if not all([new_name, new_username, new_password, confirm_password]):
                     st.error("所有欄位都必須填寫！")
@@ -114,19 +118,14 @@ def show_login_register_page():
 
 # --- 主應用程式邏輯 ---
 def main_app():
-    # --- 側邊欄 ---
     st.sidebar.title(f"歡迎, {st.session_state['name']}!")
     if st.sidebar.button("登出"):
-        # 清理 session state 並重新整理
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
-    
     app_mode = st.sidebar.selectbox("請選擇功能", ["抽卡模擬器", "我的卡冊"])
     st.sidebar.markdown("---")
     st.sidebar.caption("此網頁的圖檔皆來自於微博 : 小姚宋敏")
-
-    # --- 卡冊或抽卡介面 ---
     if app_mode == "我的卡冊":
         show_card_collection()
     else:
@@ -139,19 +138,40 @@ def show_card_collection():
     if not my_cards:
         st.info("您的卡冊還是空的，快去抽卡吧！")
         return
-    my_cards.sort(key=lambda x: natural_sort_key(x.get('path', '')))
+
+    # 【本次更新重點】按卡池分組
+    grouped_cards = defaultdict(list)
+    for card in my_cards:
+        path = card.get('path')
+        if path:
+            # 從路徑 'image/卡池名稱/...' 中提取卡池名稱
+            pool_name = Path(path).parts[1]
+            grouped_cards[pool_name].append(card)
+
     total_cards = sum(c.get('count', 0) for c in my_cards)
     st.success(f"您總共擁有 {len(my_cards)} 種不同卡片，總計 {total_cards} 張。")
     st.markdown("---")
-    for card_data in my_cards:
-        path = card_data.get('path')
-        count = card_data.get('count', 0)
-        col1, col2 = st.columns([1, 4])
-        with col1: st.image(path, width=150)
-        with col2:
-            st.write(f"**擁有數量：{count}**")
-            st.caption(f"路徑: {path}")
-        st.markdown("---")
+
+    # 按照卡池名稱排序並顯示
+    for pool_name in sorted(grouped_cards.keys()):
+        with st.expander(f"**{pool_name}** ({len(grouped_cards[pool_name])} 種)"):
+            pool_cards = grouped_cards[pool_name]
+            pool_cards.sort(key=lambda x: natural_sort_key(x.get('path', '')))
+            
+            for card_data in pool_cards:
+                path = card_data.get('path')
+                count = card_data.get('count', 0)
+                card_name = card_data.get('name', Path(path).stem)
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    st.image(path, width=150)
+                with col2:
+                    st.subheader(f"【 {card_name} 】")
+                    st.write(f"**擁有數量：{count}**")
+                    st.caption(f"路徑: {path}")
+                st.markdown("---")
+
 
 def show_gacha_simulator():
     st.header("🎰 抽卡模擬器")
@@ -166,10 +186,14 @@ def show_gacha_simulator():
 def add_cards_to_collection(card_paths):
     if not card_paths: return
     user_doc_ref = db.collection('users').document(st.session_state['username'])
-    for card_path in card_paths:
+    for card_path_str in card_paths:
+        card_path = Path(card_path_str)
+        card_info = CARD_DATA.get(card_path.as_posix(), {})
+        card_name = card_info.get('name', card_path.stem)
+        
         card_id = str(card_path).replace("/", "_").replace("\\", "_")
         card_doc_ref = user_doc_ref.collection('cards').document(card_id)
-        card_doc_ref.set({'path': str(card_path), 'count': firestore.Increment(1)}, merge=True)
+        card_doc_ref.set({'path': str(card_path), 'name': card_name, 'count': firestore.Increment(1)}, merge=True)
     st.toast(f"已將 {len(card_paths)} 張卡片加入卡冊！")
 
 def draw_random_cards_and_save(path, num_to_draw, title):
@@ -208,7 +232,7 @@ def draw_summer_memories():
         draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
 def draw_second_album(album_name):
-    st.subheader(f"� {album_name}")
+    st.subheader(f"🎶 {album_name}")
     st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
     base_path = Path(f"image/{album_name}")
     if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
@@ -266,16 +290,9 @@ def draw_third_album():
                 c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
 
 # --- 程式進入點 ---
-# 初始化 session_state
 if 'authentication_status' not in st.session_state:
     st.session_state['authentication_status'] = None
-if 'username' not in st.session_state:
-    st.session_state['username'] = None
-if 'name' not in st.session_state:
-    st.session_state['name'] = None
-
-# 根據登入狀態顯示不同頁面
-if st.session_state['authentication_status']:
+if st.session_state.get('authentication_status'):
     main_app()
 else:
     show_login_register_page()
