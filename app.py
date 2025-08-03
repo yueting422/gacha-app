@@ -15,7 +15,7 @@ import json
 try:
     # 為了避免重複初始化，我們檢查 session_state
     if 'db' not in st.session_state:
-        # 【本次更新重點】手動從 secrets 建立一個標準的 Python 字典
+        # 手動從 secrets 建立一個標準的 Python 字典
         creds_dict = {
             "type": st.secrets["firebase_credentials"]["type"],
             "project_id": st.secrets["firebase_credentials"]["project_id"],
@@ -57,8 +57,9 @@ users = {
     }
 }
 
+# 【本次更新重點】修正 Authenticate 的第一個參數
 authenticator = stauth.Authenticate(
-    users,
+    users['usernames'],
     'tnt_gacha_cookie',    # Cookie 名稱，可自訂
     'tnt_gacha_signature', # Signature 金鑰，可自訂
     cookie_expiry_days=30
