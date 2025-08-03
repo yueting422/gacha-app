@@ -50,7 +50,7 @@ users = {
         "tnt_user": { # 這是一個範例使用者名稱
             "email": "user@example.com",
             "name": "時代少年團粉絲",
-            "password": "$2b$12$3yN/o.AS8j4BscLgB4p.HeaBqI.O7s5J4Zz1e9c2b3d4e5f6g7h8i" # 這是 '12345' 的雜湊值
+            "password": "$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1" # 這是 '12345' 的一個範例雜湊值
         }
     }
 }
@@ -166,13 +166,13 @@ if authentication_status:
             draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
     def draw_second_album(album_name):
-        st.subheader(f"� {album_name}")
+        st.subheader(f"🎶 {album_name}")
         st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
         base_path = Path(f"image/{album_name}")
         if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
             st.success("抽卡結果如下：")
             draw_random_cards_and_save(base_path / "團體卡", 1, "🎫 團體卡")
-            draw_random_cards_and_save(base_path / "分隊卡", 1, "👯 分隊卡")
+            draw_random_cards_and_save(base_path / "分隊卡", 1, "� 分隊卡")
             draw_random_cards_and_save(base_path / "雙人卡", 7, "💖 雙人卡")
             draw_random_cards_and_save(base_path / "ID卡", 1, "🆔 ID卡")
             draw_fixed_solo_set_and_save(base_path / "單人固卡", "✨ 單人固卡")
