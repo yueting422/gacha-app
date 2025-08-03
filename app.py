@@ -43,21 +43,34 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 改用列表方式初始化，以提高穩定性
+# 【本次更新重點】使用官方推薦的 config 字典結構來進行設定
 # 範例使用者 tnt_user 的密碼是 '12345'
-names = ['時代少年團粉絲']
-usernames = ['tnt_user']
-# 這是 '12345' 的一個範例雜湊值
-hashed_passwords = ['$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1']
+config = {
+    'credentials': {
+        'usernames': {
+            'tnt_user': {
+                'email': 'user@example.com',
+                'name': '時代少年團粉絲',
+                'password': '$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1' # '12345' 的雜湊值
+            }
+        }
+    },
+    'cookie': {
+        'expiry_days': 30,
+        'key': 'tnt_gacha_signature_key', # 必須是一個 secret key
+        'name': 'tnt_gacha_cookie_name'
+    },
+    'preauthorized': {
+        'emails': []
+    }
+}
 
-# 【本次更新重點】明確使用關鍵字參數來初始化，避免參數混淆
 authenticator = stauth.Authenticate(
-    names,
-    usernames,
-    hashed_passwords,
-    cookie_name='tnt_gacha_cookie',
-    key='tnt_gacha_signature',
-    cookie_expiry_days=30
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+    config['preauthorized']
 )
 
 # --- 登入介面 ---
@@ -164,7 +177,7 @@ if authentication_status:
             draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
     def draw_second_album(album_name):
-        st.subheader(f"🎶 {album_name}")
+        st.subheader(f"� {album_name}")
         st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
         base_path = Path(f"image/{album_name}")
         if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
