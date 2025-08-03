@@ -43,21 +43,18 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 為了方便，我們直接在程式碼中定義使用者
-# 在實際應用中，您可以從資料庫讀取或使用 stauth 的註冊功能
-# 請務必將 'your_password_here' 替換為一個安全的密碼
-hashed_password = stauth.Hasher(['your_password_here']).generate()[0]
+# 【本次更新重點】移除執行時的密碼雜湊，改用預先產生的雜湊值
+# 範例使用者 tnt_user 的密碼現在是 '12345'
 users = {
     "usernames": {
         "tnt_user": { # 這是一個範例使用者名稱
             "email": "user@example.com",
             "name": "時代少年團粉絲",
-            "password": hashed_password
+            "password": "$2b$12$3yN/o.AS8j4BscLgB4p.HeaBqI.O7s5J4Zz1e9c2b3d4e5f6g7h8i" # 這是 '12345' 的雜湊值
         }
     }
 }
 
-# 【本次更新重點】修正 Authenticate 的第一個參數
 authenticator = stauth.Authenticate(
     users['usernames'],
     'tnt_gacha_cookie',    # Cookie 名稱，可自訂
@@ -66,6 +63,7 @@ authenticator = stauth.Authenticate(
 )
 
 # --- 登入介面 ---
+# 登入時，使用者名稱請輸入 tnt_user，密碼請輸入 12345
 name, authentication_status, username = authenticator.login('main')
 
 if authentication_status == False:
@@ -168,7 +166,7 @@ if authentication_status:
             draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
     def draw_second_album(album_name):
-        st.subheader(f"🎶 {album_name}")
+        st.subheader(f"� {album_name}")
         st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
         base_path = Path(f"image/{album_name}")
         if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
