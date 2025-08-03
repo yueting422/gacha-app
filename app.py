@@ -163,6 +163,57 @@ def delete_user_account(password, confirmation):
         del st.session_state[key]
     st.rerun()
 
+def transfer_card(recipient_username, card_data):
+    """處理換卡的核心邏輯"""
+    sender_username = st.session_state['username']
+    recipient_username = recipient_username.lower()
+
+    if sender_username == recipient_username:
+        st.error("您不能將卡片轉給自己！")
+        return
+
+    # 檢查接收方使用者是否存在
+    recipient_ref = db.collection('users').document(recipient_username)
+    if not recipient_ref.get().exists:
+        st.error(f"找不到使用者 '{recipient_username}'！")
+        return
+
+    # 準備卡片資料
+    card_id = card_data['path'].replace("/", "_").replace("\\", "_")
+    
+    # 執行資料庫交易，確保資料一致性
+    @firestore.transactional
+    def update_in_transaction(transaction, sender_ref, recipient_ref, card_id, card_data):
+        # 1. 從傳送方扣除卡片
+        sender_card_ref = sender_ref.collection('cards').document(card_id)
+        sender_card_snapshot = sender_card_ref.get(transaction=transaction)
+        
+        if not sender_card_snapshot.exists or sender_card_snapshot.to_dict()['count'] <= 0:
+            st.error("您沒有這張卡片可以轉移！")
+            return
+
+        current_count = sender_card_snapshot.to_dict()['count']
+        if current_count > 1:
+            transaction.update(sender_card_ref, {'count': firestore.Increment(-1)})
+        else:
+            transaction.delete(sender_card_ref)
+
+        # 2. 給予接收方卡片
+        recipient_card_ref = recipient_ref.collection('cards').document(card_id)
+        transaction.set(recipient_card_ref, {
+            'path': card_data['path'],
+            'name': card_data['name'],
+            'count': firestore.Increment(1)
+        }, merge=True)
+
+    sender_ref = db.collection('users').document(sender_username)
+    transaction = db.transaction()
+    update_in_transaction(transaction, sender_ref, recipient_ref, card_id, card_data)
+    
+    st.success(f"已成功將卡片「{card_data['name']}」轉移給 {recipient_username}！")
+    st.rerun()
+
+
 def show_card_collection():
     st.header("📚 我的卡冊")
     cards_ref = db.collection('users').document(st.session_state['username']).collection('cards').stream()
@@ -201,6 +252,14 @@ def show_card_collection():
                 with col2:
                     st.markdown(f"**{card_name}**")
                     st.write(f"擁有數量：{count}")
+
+                    # 【新功能】換卡介面
+                    with st.expander("換卡 (Transfer Card)"):
+                        with st.form(key=f"transfer_{path}"):
+                            recipient_username = st.text_input("接收方使用者名稱", key=f"user_{path}").lower()
+                            transfer_submitted = st.form_submit_button("確認轉移")
+                            if transfer_submitted:
+                                transfer_card(recipient_username, card_data)
                 st.markdown("---")
 
 
@@ -225,8 +284,6 @@ def add_cards_to_collection(card_paths):
         card_id = str(card_path).replace("/", "_").replace("\\", "_")
         card_doc_ref = user_doc_ref.collection('cards').document(card_id)
         card_doc_ref.set({'path': str(card_path), 'name': card_name, 'count': firestore.Increment(1)}, merge=True)
-    # 【本次更新重點】移除通知訊息
-    # st.toast(f"已將 {len(card_paths)} 張卡片加入卡冊！")
 
 def draw_random_cards_and_save(path, num_to_draw, title):
     st.markdown(f"### {title}")
@@ -293,11 +350,10 @@ def draw_second_album(album_name):
 
 def draw_third_album():
     st.subheader("💿 第三張專輯")
-    st.write("規則：點擊按鈕，抽取「雙人卡」3張、「團體卡」1張、「單人固卡」1套，並有1%機率額外獲得UR卡！")
+    st.write("規則：點擊按鈕，抽取「雙人卡」3張、「團體卡」1張、「單人固卡」1套，並有5%機率額外獲得UR卡！")
     if st.button("開始抽取三專！", key="album_draw"):
         st.success("抽卡結果如下：")
         
-        # 雙人卡
         st.markdown("### 💖 雙人卡 (3張)")
         base_path = Path("image/三專/雙人卡")
         r, sr = get_image_files(base_path/"R"), get_image_files(base_path/"SR")
@@ -311,8 +367,7 @@ def draw_third_album():
                     with cols[i]:
                         st.image(c, use_container_width=True)
 
-        # 團體卡
-        st.markdown("### 👨‍👨‍👦‍👦 團體卡 (1張)")
+        st.markdown("### 👨‍👨‍👦‍� 團體卡 (1張)")
         g_path = Path("image/三專/團體卡")
         opts = {"R": 57, "SR": 38, "SSR": 5}
         deck = [str(f) for r, w in opts.items() for f in g_path.glob(f'{r}.*') for _ in range(w)]
@@ -321,7 +376,6 @@ def draw_third_album():
             add_cards_to_collection([drawn])
             c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
         
-        # 單人固卡
         st.markdown("### ✨ 單人固卡 (1套)")
         solo_base_path = Path("image/三專/單人固卡")
         choices = (["R"]*57) + (["SR"]*38) + (["SSR"]*5)
@@ -340,8 +394,8 @@ def draw_third_album():
         else:
             st.error(f"在「{solo_path}」中找不到卡片。")
 
-        # UR卡
-        if random.randint(1, 100) == 1:
+        # 【新功能】UR卡機率提升至 5%
+        if random.randint(1, 100) <= 5:
             ur_cards = get_image_files(Path("image/三專/UR"))
             if ur_cards:
                 st.balloons()
