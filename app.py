@@ -210,7 +210,7 @@ def show_gacha_simulator():
     selected_mode = st.selectbox("請選擇您想玩的抽卡模式：", modes)
     st.markdown("---")
     if selected_mode == "☀️ 夏日記憶": draw_summer_memories()
-    elif selected_mode == "� 二專-三時有聲款": draw_second_album("二專-三時有聲款")
+    elif selected_mode == "🎤 二專-三時有聲款": draw_second_album("二專-三時有聲款")
     elif selected_mode == "🎡 二專-烏托邦樂園款": draw_second_album("二專-烏托邦樂園款")
     elif selected_mode == "💿 第三張專輯": draw_third_album()
 
@@ -263,21 +263,18 @@ def draw_summer_memories():
         draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
 def draw_second_album(album_name):
-    st.subheader(f"🎶 {album_name}")
+    st.subheader(f"� {album_name}")
     st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
     
-    # 決定資料來源路徑
     if album_name == "二專-烏托邦樂園款":
         data_source_path = Path("image/二專-三時有聲款")
     else:
         data_source_path = Path(f"image/{album_name}")
     
-    # 預售禮的路徑永遠跟隨選擇的款式
     presale_path = Path(f"image/{album_name}/預售禮")
 
     if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
         st.success("抽卡結果如下：")
-        # 使用決定好的資料來源路徑進行抽卡
         draw_random_cards_and_save(data_source_path / "團體卡", 1, "🎫 團體卡")
         draw_random_cards_and_save(data_source_path / "分隊卡", 1, "👯 分隊卡")
         draw_random_cards_and_save(data_source_path / "雙人卡", 7, "💖 雙人卡")
@@ -286,7 +283,6 @@ def draw_second_album(album_name):
         draw_random_cards_and_save(data_source_path / "高級會員專屬贈品", 1, "💎 高級會員贈品")
         
         st.markdown("### 特典 - 預售禮")
-        # 預售禮使用自己款式的路徑
         if album_name == "二專-三時有聲款":
             draw_random_cards_and_save(presale_path / "團卡", 1, "預售禮 - 團卡")
             draw_random_cards_and_save(presale_path / "單人卡", 1, "預售禮 - 單人卡")
@@ -299,6 +295,8 @@ def draw_third_album():
     st.write("規則：點擊按鈕，抽取「雙人卡」3張、「團體卡」1張、「單人固卡」1套，並有1%機率額外獲得UR卡！")
     if st.button("開始抽取三專！", key="album_draw"):
         st.success("抽卡結果如下：")
+        
+        # 雙人卡
         st.markdown("### 💖 雙人卡 (3張)")
         base_path = Path("image/三專/雙人卡")
         r, sr = get_image_files(base_path/"R"), get_image_files(base_path/"SR")
@@ -307,7 +305,13 @@ def draw_third_album():
             if len(deck) >= 3:
                 drawn = random.sample(deck, 3)
                 add_cards_to_collection(drawn)
-                cols = st.columns(3); [cols[i].image(c, use_container_width=True) for i, c in enumerate(drawn)]
+                # 【修正點 1】改用標準 for 迴圈
+                cols = st.columns(3)
+                for i, c in enumerate(drawn):
+                    with cols[i]:
+                        st.image(c, use_container_width=True)
+
+        # 團體卡
         st.markdown("### 👨‍👨‍👦‍👦 團體卡 (1張)")
         g_path = Path("image/三專/團體卡")
         opts = {"R": 57, "SR": 38, "SSR": 5}
@@ -317,11 +321,26 @@ def draw_third_album():
             add_cards_to_collection([drawn])
             c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
         
+        # 【修正點 2】為「三專」單人固卡撰寫專屬邏輯
+        st.markdown("### ✨ 單人固卡 (1套)")
         solo_base_path = Path("image/三專/單人固卡")
         choices = (["R"]*57) + (["SR"]*38) + (["SSR"]*5)
         rarity = random.choice(choices)
-        draw_fixed_solo_set_and_save(solo_base_path / rarity, f"✨ 單人固卡 ({rarity}套)")
+        st.info(f"您抽中了 **{rarity}** 套組！")
         
+        solo_path = solo_base_path / rarity
+        card_set = get_image_files(solo_path)
+        if card_set:
+            card_set.sort(key=natural_sort_key)
+            add_cards_to_collection(card_set)
+            cols = st.columns(min(len(card_set), 7))
+            for i, card in enumerate(card_set):
+                with cols[i % len(cols)]:
+                    st.image(card, use_container_width=True)
+        else:
+            st.error(f"在「{solo_path}」中找不到卡片。")
+
+        # UR卡
         if random.randint(1, 100) == 1:
             ur_cards = get_image_files(Path("image/三專/UR"))
             if ur_cards:
