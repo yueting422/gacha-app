@@ -133,6 +133,9 @@ def main_app():
 
     st.sidebar.markdown("---")
     st.sidebar.caption("此網頁的圖檔皆來自於微博 : 小姚宋敏")
+    # 【本次更新重點】新增程式撰寫者資訊
+    st.sidebar.caption("程式鑽寫者: 玥庭 (IG: lyw._.sxh)")
+    
     if app_mode == "我的卡冊":
         show_card_collection()
     else:
@@ -367,7 +370,7 @@ def draw_third_album():
                     with cols[i]:
                         st.image(c, use_container_width=True)
 
-        st.markdown("### 👨‍👨‍👦‍� 團體卡 (1張)")
+        st.markdown("### 👨‍👨‍👦‍👦 團體卡 (1張)")
         g_path = Path("image/三專/團體卡")
         opts = {"R": 57, "SR": 38, "SSR": 5}
         deck = [str(f) for r, w in opts.items() for f in g_path.glob(f'{r}.*') for _ in range(w)]
@@ -394,7 +397,7 @@ def draw_third_album():
         else:
             st.error(f"在「{solo_path}」中找不到卡片。")
 
-        # 【新功能】UR卡機率提升至 5%
+        # UR卡機率提升至 5%
         if random.randint(1, 100) <= 5:
             ur_cards = get_image_files(Path("image/三專/UR"))
             if ur_cards:
