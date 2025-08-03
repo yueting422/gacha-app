@@ -43,46 +43,44 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 使用官方推薦的 config 字典結構來進行設定
-# 範例使用者 tnt_user 的密碼是 '12345'
+# 【本次更新重點】移除寫死的用戶，改為動態讀寫設定檔
+# 這裡我們使用一個簡單的 YAML 檔案來管理使用者，您也可以擴充
+# 為了方便，我們直接在程式碼中定義
 config = {
     'credentials': {
-        'usernames': {
-            'tnt_user': {
-                'email': 'user@example.com',
-                'name': '時代少年團粉絲',
-                'password': '$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1' # '12345' 的雜湊值
-            }
-        }
+        'usernames': {} # 從 Firestore 讀取或註冊時新增
     },
     'cookie': {
         'expiry_days': 30,
         'key': 'tnt_gacha_signature_key', # 必須是一個 secret key
         'name': 'tnt_gacha_cookie_name'
+    },
+    'preauthorized': {
+        'emails': []
     }
 }
 
 authenticator = stauth.Authenticate(
-    credentials=config['credentials'],
-    cookie_name=config['cookie']['name'],
-    key=config['cookie']['key'],
-    cookie_expiry_days=config['cookie']['expiry_days']
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
 )
 
 # --- 登入介面 ---
-# 【本次更新重點】不再解包 login() 的回傳值，而是直接從 session_state 讀取狀態
-authenticator.login(location='main')
-
-# 從 session_state 獲取登入狀態
-authentication_status = st.session_state.get("authentication_status")
-name = st.session_state.get("name")
-username = st.session_state.get("username")
-
+name, authentication_status, username = authenticator.login('main')
 
 if authentication_status == False:
     st.error('使用者名稱/密碼不正確')
 elif authentication_status == None:
     st.warning('請輸入您的使用者名稱和密碼以開始使用')
+    # 【本次更新重點】加入註冊功能
+    try:
+        if authenticator.register_user('Register user', preauthorization=False):
+            st.success('使用者註冊成功，請登入')
+    except Exception as e:
+        st.error(e)
+
 
 # --- 主應用程式邏輯 (使用者登入後才會執行) ---
 if authentication_status:
@@ -259,7 +257,7 @@ if authentication_status:
 
         if selected_mode == "☀️ 夏日記憶":
             draw_summer_memories()
-        elif selected_mode == "� 二專-三時有聲款":
+        elif selected_mode == "🎤 二專-三時有聲款":
             draw_second_album("二專-三時有聲款")
         elif selected_mode == "🎡 二專-烏托邦樂園款":
             draw_second_album("二專-烏托邦樂園款")
