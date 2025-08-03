@@ -15,8 +15,22 @@ import json
 try:
     # 為了避免重複初始化，我們檢查 session_state
     if 'db' not in st.session_state:
-        # 【本次更新重點】直接將 secrets 當作字典傳遞，不再需要 json.loads()
-        cred = credentials.Certificate(st.secrets["firebase_credentials"])
+        # 【本次更新重點】手動從 secrets 建立一個標準的 Python 字典
+        creds_dict = {
+            "type": st.secrets["firebase_credentials"]["type"],
+            "project_id": st.secrets["firebase_credentials"]["project_id"],
+            "private_key_id": st.secrets["firebase_credentials"]["private_key_id"],
+            "private_key": st.secrets["firebase_credentials"]["private_key"],
+            "client_email": st.secrets["firebase_credentials"]["client_email"],
+            "client_id": st.secrets["firebase_credentials"]["client_id"],
+            "auth_uri": st.secrets["firebase_credentials"]["auth_uri"],
+            "token_uri": st.secrets["firebase_credentials"]["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["firebase_credentials"]["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["firebase_credentials"]["client_x509_cert_url"],
+            "universe_domain": st.secrets["firebase_credentials"]["universe_domain"]
+        }
+        
+        cred = credentials.Certificate(creds_dict)
         
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
@@ -212,7 +226,7 @@ if authentication_status:
                 ur_cards = get_image_files(Path("image/三專/UR"))
                 if ur_cards:
                     st.balloons()
-                    st.markdown("### � 奇蹟降臨！🎉")
+                    st.markdown("### 🎉 奇蹟降臨！🎉")
                     drawn = random.choice(ur_cards)
                     add_cards_to_collection([drawn])
                     c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
