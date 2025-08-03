@@ -59,23 +59,20 @@ config = {
         'expiry_days': 30,
         'key': 'tnt_gacha_signature_key', # 必須是一個 secret key
         'name': 'tnt_gacha_cookie_name'
-    },
-    'preauthorized': {
-        'emails': []
     }
 }
 
-# 【本次更新重點】移除 'preauthorized' 參數以符合新版套件要求
+# 【本次更新重點】使用最明確的關鍵字參數來初始化 Authenticate 物件
 authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
+    credentials=config['credentials'],
+    cookie_name=config['cookie']['name'],
+    key=config['cookie']['key'],
+    cookie_expiry_days=config['cookie']['expiry_days']
 )
 
 # --- 登入介面 ---
 # 登入時，使用者名稱請輸入 tnt_user，密碼請輸入 12345
-name, authentication_status, username = authenticator.login('main')
+name, authentication_status, username = authenticator.login(location='main')
 
 if authentication_status == False:
     st.error('使用者名稱/密碼不正確')
@@ -251,7 +248,7 @@ if authentication_status:
         show_card_collection()
     else:
         st.header("🎰 抽卡模擬器")
-        modes = ["☀️ 夏日記憶", "🎤 二專-三時有聲款", "🎡 二專-烏托邦樂園款", "💿 第三張專輯"]
+        modes = ["☀️ 夏日記憶", "🎤 二專-三時有聲款", "� 二專-烏托邦樂園款", "💿 第三張專輯"]
         selected_mode = st.selectbox("請選擇您想玩的抽卡模式：", modes)
         st.markdown("---")
 
