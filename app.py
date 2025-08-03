@@ -70,9 +70,14 @@ authenticator = stauth.Authenticate(
 )
 
 # --- 登入介面 ---
-# 【本次更新重點】簡化 login 呼叫，使用預設參數
-# 登入時，使用者名稱請輸入 tnt_user，密碼請輸入 12345
-name, authentication_status, username = authenticator.login()
+# 【本次更新重點】不再解包 login() 的回傳值，而是直接從 session_state 讀取狀態
+authenticator.login(location='main')
+
+# 從 session_state 獲取登入狀態
+authentication_status = st.session_state.get("authentication_status")
+name = st.session_state.get("name")
+username = st.session_state.get("username")
+
 
 if authentication_status == False:
     st.error('使用者名稱/密碼不正確')
@@ -254,7 +259,7 @@ if authentication_status:
 
         if selected_mode == "☀️ 夏日記憶":
             draw_summer_memories()
-        elif selected_mode == "🎤 二專-三時有聲款":
+        elif selected_mode == "� 二專-三時有聲款":
             draw_second_album("二專-三時有聲款")
         elif selected_mode == "🎡 二專-烏托邦樂園款":
             draw_second_album("二專-烏托邦樂園款")
