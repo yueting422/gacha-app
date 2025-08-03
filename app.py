@@ -225,7 +225,8 @@ def add_cards_to_collection(card_paths):
         card_id = str(card_path).replace("/", "_").replace("\\", "_")
         card_doc_ref = user_doc_ref.collection('cards').document(card_id)
         card_doc_ref.set({'path': str(card_path), 'name': card_name, 'count': firestore.Increment(1)}, merge=True)
-    st.toast(f"已將 {len(card_paths)} 張卡片加入卡冊！")
+    # 【本次更新重點】移除通知訊息
+    # st.toast(f"已將 {len(card_paths)} 張卡片加入卡冊！")
 
 def draw_random_cards_and_save(path, num_to_draw, title):
     st.markdown(f"### {title}")
@@ -263,7 +264,7 @@ def draw_summer_memories():
         draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
 def draw_second_album(album_name):
-    st.subheader(f"� {album_name}")
+    st.subheader(f"🎶 {album_name}")
     st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
     
     if album_name == "二專-烏托邦樂園款":
@@ -305,7 +306,6 @@ def draw_third_album():
             if len(deck) >= 3:
                 drawn = random.sample(deck, 3)
                 add_cards_to_collection(drawn)
-                # 【修正點 1】改用標準 for 迴圈
                 cols = st.columns(3)
                 for i, c in enumerate(drawn):
                     with cols[i]:
@@ -321,7 +321,7 @@ def draw_third_album():
             add_cards_to_collection([drawn])
             c1,c2,c3 = st.columns([1,2,1]); c2.image(drawn, use_container_width=True)
         
-        # 【修正點 2】為「三專」單人固卡撰寫專屬邏輯
+        # 單人固卡
         st.markdown("### ✨ 單人固卡 (1套)")
         solo_base_path = Path("image/三專/單人固卡")
         choices = (["R"]*57) + (["SR"]*38) + (["SSR"]*5)
