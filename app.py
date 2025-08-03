@@ -43,19 +43,20 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 【本次更新重點】改用列表方式初始化，以提高穩定性
+# 改用列表方式初始化，以提高穩定性
 # 範例使用者 tnt_user 的密碼是 '12345'
 names = ['時代少年團粉絲']
 usernames = ['tnt_user']
 # 這是 '12345' 的一個範例雜湊值
 hashed_passwords = ['$2b$12$EGOa4.aVSEf21mXy5e7sA.3s5J4Zz1e9c2b3d4e5f6g7h8i9j0k1']
 
+# 【本次更新重點】明確使用關鍵字參數來初始化，避免參數混淆
 authenticator = stauth.Authenticate(
     names,
     usernames,
     hashed_passwords,
-    'tnt_gacha_cookie',    # Cookie 名稱，可自訂
-    'tnt_gacha_signature', # Signature 金鑰，可自訂
+    cookie_name='tnt_gacha_cookie',
+    key='tnt_gacha_signature',
     cookie_expiry_days=30
 )
 
