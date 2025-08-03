@@ -43,7 +43,7 @@ except Exception as e:
     st.stop()
 
 # --- 使用者驗證設定 ---
-# 【本次更新重點】使用官方推薦的 config 字典結構來進行設定
+# 使用官方推薦的 config 字典結構來進行設定
 # 範例使用者 tnt_user 的密碼是 '12345'
 config = {
     'credentials': {
@@ -65,12 +65,12 @@ config = {
     }
 }
 
+# 【本次更新重點】移除 'preauthorized' 參數以符合新版套件要求
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
+    config['cookie']['expiry_days']
 )
 
 # --- 登入介面 ---
@@ -177,7 +177,7 @@ if authentication_status:
             draw_random_cards_and_save(Path("image/夏日記憶"), 3, "恭喜！您抽到了：")
 
     def draw_second_album(album_name):
-        st.subheader(f"� {album_name}")
+        st.subheader(f"🎶 {album_name}")
         st.write("規則：點擊按鈕，將會一次性抽取所有配置的卡片。")
         base_path = Path(f"image/{album_name}")
         if st.button(f"開始抽取 {album_name}！", key=album_name.replace("-", "_")):
